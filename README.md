@@ -80,17 +80,101 @@ client: 10.53.1.1
 
 ## Завдання 2. Рукостискання по записах
 Вивід кроку 2.1 (TLS 1.3):
-```text
+```
+root@cs-202-15:/lab/work# openssl s_client -connect cdn.cs-202-15.lab:443 -servername cdn.cs-202-15.lab -alpn h2,http/1.1 \
+  -CAfile $STAND_CA -trace </dev/null > t2-13.txt 2>&1
+grep -a -E '^(Sent|Received) Record|Content Type|^    [A-Z][A-Za-z]+, Length' t2-13.txt
+grep -a -E '^(ALPN|New,)|Verify return' t2-13.txt
+Sent Record
+  Content Type = Handshake (22)
+    ClientHello, Length=328
+Received Record
+  Content Type = Handshake (22)
+    ServerHello, Length=118
+Received Record
+  Content Type = ChangeCipherSpec (20)
+Received Record
+  Content Type = ApplicationData (23)
+  Inner Content Type = Handshake (22)
+    EncryptedExtensions, Length=15
+Received Record
+  Content Type = ApplicationData (23)
+  Inner Content Type = Handshake (22)
+    Certificate, Length=983
+Received Record
+  Content Type = ApplicationData (23)
+  Inner Content Type = Handshake (22)
+    CertificateVerify, Length=75
+Received Record
+  Content Type = ApplicationData (23)
+  Inner Content Type = Handshake (22)
+    Finished, Length=48
+Sent Record
+  Content Type = ChangeCipherSpec (20)
+Sent Record
+  Content Type = ApplicationData (23)
+  Inner Content Type = Handshake (22)
+    Finished, Length=48
+Sent Record
+  Content Type = ApplicationData (23)
+  Inner Content Type = Alert (21)
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+ALPN protocol: h2
+Verify return code: 0 (ok)
 ```
 Вивід кроку 2.2 (TLS 1.2):
-```text
+```
+root@cs-202-15:/lab/work# openssl s_client -connect cdn.cs-202-15.lab:443 -servername cdn.cs-202-15.lab -alpn h2,http/1.1 \
+  -tls1_2 -CAfile $STAND_CA -trace </dev/null > t2-12.txt 2>&1 && \
+grep -a -E '^(Sent|Received) Record|Content Type|^    [A-Z][A-Za-z]+, Length' t2-12.txt && \
+grep -a -E '^(ALPN|New,)|Verify return' t2-12.txt
+Sent Record
+  Content Type = Handshake (22)
+    ClientHello, Length=223
+Received Record
+  Content Type = Handshake (22)
+    ServerHello, Length=74
+Received Record
+  Content Type = Handshake (22)
+    Certificate, Length=978
+Received Record
+  Content Type = Handshake (22)
+    ServerKeyExchange, Length=111
+Received Record
+  Content Type = Handshake (22)
+    ServerHelloDone, Length=0
+Sent Record
+  Content Type = Handshake (22)
+    ClientKeyExchange, Length=33
+Sent Record
+  Content Type = ChangeCipherSpec (20)
+Sent Record
+  Content Type = Handshake (22)
+    Finished, Length=12
+Received Record
+  Content Type = Handshake (22)
+    NewSessionTicket, Length=214
+Received Record
+  Content Type = ChangeCipherSpec (20)
+Received Record
+  Content Type = Handshake (22)
+    Finished, Length=12
+Received Record
+  Content Type = ApplicationData (23)
+Sent Record
+  Content Type = Alert (21)
+New, TLSv1.2, Cipher is ECDHE-ECDSA-AES256-GCM-SHA384
+ALPN protocol: h2
+    Verify return code: 0 (ok)
 ```
 <!-- Один рядок на кожен запис з виводу 2.1, у тому самому порядку. Напрям: К→С або С→К. -->
 | № | Напрям | `Content Type` | `Inner Content Type` | Повідомлення | `Length` |
 |---|---|---|---|---|---|
 | 1 | | | | | |
+
 Вивід кроків 2.3 і 2.4:
-```text
+```
+
 ```
 | Показник | TLS 1.3 | TLS 1.2 |
 |---|---|---|
