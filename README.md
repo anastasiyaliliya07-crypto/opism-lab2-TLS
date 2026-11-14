@@ -463,7 +463,21 @@ Verify return code: 21 (unable to verify the first certificate)
 
 Вивід кроків 5.2 і 5.3:
 ```
+root@cs-202-15:/lab/work# F='%{time_namelookup} %{time_connect} %{time_appconnect} %{time_starttransfer} %{time_total} %{http_version} %{num_connects}\n'
+U=https://cdn.cs-202-15.lab/
+for i in 1 2 3; do curl -s -o /dev/null --cacert $STAND_CA -w "$F" $U; done
+for i in 1 2 3; do curl -s -o /dev/null --tls-max 1.2 --cacert $STAND_CA -w "$F" $U; done
+0.050906 0.101077 0.129673 0.154987 0.155050 2 1
+0.025456 0.050583 0.080028 0.105571 0.105628 2 1
+0.025502 0.050646 0.079852 0.105168 0.105224 2 1
+0.025402 0.050518 0.104768 0.130090 0.130152 2 1
+0.025494 0.050622 0.104778 0.130083 0.130138 2 1
+0.025365 0.050494 0.104443 0.129760 0.129828 2 1
 
+root@cs-202-15:/lab/work# curl -s --cacert $STAND_CA -w "$F" -o /dev/null $U -o /dev/null $U -o /dev/null $U
+0.050799 0.075923 0.104929 0.130240 0.130291 2 1
+0.000018 0.000000 0.000000 0.025212 0.025274 2 0
+0.000018 0.000000 0.000000 0.025210 0.025252 2 0
 ```
 <!-- Значення в мілісекундах. Для нових з'єднань — медіана трьох вимірювань. -->
 | Запит | `namelookup` | `connect` | `appconnect` | `starttransfer` | `total` | `num_connects` |
