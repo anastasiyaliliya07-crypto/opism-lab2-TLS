@@ -377,18 +377,78 @@ Verify return code: 0 (ok)
 
 ## Завдання 4. Діагностика несправностей
 Вивід кроку 4.1:
-```text
+```
+root@cs-202-15:/lab/work/lego/certificates# for i in 1 2 3 4 5; do
+  n=f$i.cs-202-15.lab; echo "=== $n"
+  curl -sS --cacert $STAND_CA https://$n/ 2>&1 | head -1
+  openssl s_client -connect $n:443 -servername $n -CAfile $STAND_CA </dev/null 2>/dev/null \
+    | sed -n '/^Certificate chain/,/^---/p;/^Verify return code/p' | grep -v PKEY
+done
+=== f1.cs-202-15.lab
+curl: (60) SSL certificate problem: self-signed certificate
+Certificate chain
+ 0 s:CN = f1.cs-202-15.lab
+   i:CN = f1.cs-202-15.lab
+   v:NotBefore: Nov 14 08:49:51 2026 GMT; NotAfter: Feb 12 08:49:51 2027 GMT
+---
+Verify return code: 18 (self-signed certificate)
+=== f2.cs-202-15.lab
+curl: (60) SSL certificate problem: certificate has expired
+Certificate chain
+ 0 s:CN = f2.cs-202-15.lab
+   i:O = OPISM Lab, CN = OPISM Stand Intermediate CA
+   v:NotBefore: Apr 28 08:49:51 2026 GMT; NotAfter: Oct 25 08:49:51 2026 GMT
+ 1 s:O = OPISM Lab, CN = OPISM Stand Intermediate CA
+   i:O = OPISM Lab, CN = OPISM Stand Root CA
+   v:NotBefore: Nov 14 08:49:51 2026 GMT; NotAfter: Nov 13 08:49:51 2031 GMT
+---
+Verify return code: 10 (certificate has expired)
+=== f3.cs-202-15.lab
+curl: (60) SSL: no alternative certificate subject name matches target host name 'f3.cs-202-15.lab'
+Certificate chain
+ 0 s:CN = intra.cs-202-15.lab
+   i:O = OPISM Lab, CN = OPISM Stand Intermediate CA
+   v:NotBefore: Nov 14 08:49:51 2026 GMT; NotAfter: Feb 12 08:49:51 2027 GMT
+ 1 s:O = OPISM Lab, CN = OPISM Stand Intermediate CA
+   i:O = OPISM Lab, CN = OPISM Stand Root CA
+   v:NotBefore: Nov 14 08:49:51 2026 GMT; NotAfter: Nov 13 08:49:51 2031 GMT
+---
+Verify return code: 0 (ok)
+=== f4.cs-202-15.lab
+server: web, f4
+Certificate chain
+ 0 s:CN = f4.cs-202-15.lab
+   i:O = OPISM Lab, CN = OPISM Stand Intermediate CA
+   v:NotBefore: Nov 14 08:49:51 2026 GMT; NotAfter: Feb 12 08:49:51 2027 GMT
+ 1 s:O = OPISM Lab, CN = OPISM Stand Intermediate CA
+   i:O = OPISM Lab, CN = OPISM Stand Root CA
+   v:NotBefore: Nov 14 08:49:51 2026 GMT; NotAfter: Nov 13 08:49:51 2031 GMT
+---
+Verify return code: 0 (ok)
+=== f5.cs-202-15.lab
+curl: (60) SSL certificate problem: unable to get local issuer certificate
+Certificate chain
+ 0 s:CN = f5.cs-202-15.lab
+   i:O = OPISM Lab, CN = OPISM Stand Intermediate CA
+   v:NotBefore: Nov 14 08:49:51 2026 GMT; NotAfter: Feb 12 08:49:51 2027 GMT
+---
+Verify return code: 21 (unable to verify the first certificate)
 ```
 | Сервер | Помилка `curl` | `Verify return code` | Яка перевірка не пройшла | Рядок виводу, що це доводить | Що має змінити власник сервера |
 |---|---|---|---|---|---|
-| f1 | | | | | |
-| f2 | | | | | |
-| f3 | | | | | |
-| f4 | | | | | |
-| f5 | | | | | |
-1. Для сервера з помилкою `unable to get local issuer certificate` визначте, яка це несправність: сервер не надсилає проміжний сертифікат чи сертифікат виданий центром, якому клієнт не довіряє. Чим ці дві несправності відрізняються у виводі `openssl s_client`?
-2. Якщо серед ваших серверів є сервер з невідповідним ім'ям, чому `openssl s_client` повертає для нього `Verify return code: 0 (ok)`, а `curl` повідомляє про помилку? Якщо такого сервера немає, дайте відповідь для загального випадку.
-3. Які з п'яти серверів відповіли б на запит `curl -k`? Що при цьому втрачається порівняно з `--cacert`?
+| f1 |`SSL certificate problem: self-signed certificate` |`18 (self-signed certificate)` |Самопідписаний сертифікат |`i:CN = f1.cs-202-15.lab` (Issuer збігається з Subject) |Замінити сертифікат на підписаний довіреним Центром сертифікації (CA) |
+| f2 |`SSL certificate problem: certificate has expired` |`10 (certificate has expired)` |Прострочений сертифікат |`NotAfter: Oct 25 ... 2026 GMT` (поточна дата пізніша) |Оновити (випустити новий) сертифікат |
+| f3 |`SSL: no alternative certificate subject name matches target host name` |`0 (ok)` |Невідповідність імені (SAN/CN не збігається з доходом) |`0 s:CN = intra.cs-202-15.lab` (а запитували `f3.cs-202-15.lab`) |Випустити сертифікат із правильним ім'ям у SAN або перейменувати сервер |
+| f4 |(відсутня, запит успішний) |`0 (ok)` |Успішно (справний сервер) |`server: web, f4` / `Verify return code: 0 (ok)` |Нічого (сервер працює коректно) |
+| f5 |`SSL certificate problem: unable to get local issuer certificate` |`21 (unable to verify the first certificate)` |Сервер не надсилає проміжний сертифікат (неповний ланцюжок) |У ланцюжку присутній лише елемент `0`, а проміжний `1` відсутній |Додати проміжний сертифікат видавця до конфігурації сервера (як ми робили в завданні 3.6) |
+
+**1. Для сервера з помилкою `unable to get local issuer certificate` визначте, яка це несправність: сервер не надсилає проміжний сертифікат чи сертифікат виданий центром, якому клієнт не довіряє. Чим ці дві несправності відрізняються у виводі `openssl s_client`?** 
+Для сервера з помилкою `unable to get local issuer certificate` визначено, що це несправність, пов'язана з тим, що сервер не надсилає проміжний сертифікат, тобто ланцюжок є неповним. У виводі `openssl s_client` ці дві несправності відрізняються тим, що у випадку відсутності проміжного сертифіката в блоці `Certificate chain` присутній лише один елемент (сам сертифікат сервера `0`), тоді як клієнт знає корінь, але не може побудувати міст. Якщо ж сертифікат виданий невідомим центром, сервер зазвичай надсилає повний ланцюжок, проте перевірка все одно завершується помилкою невідомого кореня.
+**2. Якщо серед ваших серверів є сервер з невідповідним ім'ям, чому `openssl s_client` повертає для нього `Verify return code: 0 (ok)`, а `curl` повідомляє про помилку? Якщо такого сервера немає, дайте відповідь для загального випадку.** 
+Якщо серед серверів є сервер з невідповідним ім'ям, утиліта `openssl s_client` повертає для нього `Verify return code: 0 (ok)`, оскільки вона перевіряє виключно криптографічну валідність ланцюжка та підписів, не виконуючи суворого зіставлення hostname проти SNI. Натомість `curl` виконує обов'язкову перевірку відповідності доменного імені в полі SAN або CN сертифікатора, і якщо ім'я в сертифікаті не збігається з адресою запиту, `curl` фіксує помилку заради захисту від атак типу Man-in-the-Middle.   
+**3. Які з п'яти серверів відповіли б на запит `curl -k`? Що при цьому втрачається порівняно з `--cacert`?** 
+На запит із ключем `-k (--insecure)` відповіли б усі п'ять серверів (`f1`, `f2`, `f3`, `f4` та `f5`), оскільки цей ключ повністю скасовує перевірку сертифікатів, термінів їхньої дії та довіри до центру сертифікації. Головним наслідком цього є те, що повністю втрачається будь-яка криптографічна гарантія автентичності сервера, і клієнт більше не може захистити себе від перехоплення трафіку зловмисником.
+
 ## Завдання 5. Ціна нового з'єднання
 **Прогноз** (записати до вимірювання). Скільки RTT мине до завершення кожного етапу:
 | Етап | TLS 1.3, нове з'єднання | TLS 1.2, нове з'єднання | Повторне використання з'єднання |
