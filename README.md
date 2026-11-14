@@ -170,23 +170,59 @@ ALPN protocol: h2
 <!-- Один рядок на кожен запис з виводу 2.1, у тому самому порядку. Напрям: К→С або С→К. -->
 | № | Напрям | `Content Type` | `Inner Content Type` | Повідомлення | `Length` |
 |---|---|---|---|---|---|
-| 1 | | | | | |
+| 1 |К→С |Handshake (22) |- |ClientHello |328 |
+|2 |С→К |Handshake (22) |- |ServerHello |118 |
+|3 |С→К |ChangeCipherSpec (20) |- |(ChangeCipherSpec) |- |
+|4 |С→К |ApplicationData (23) |Handshake (22) |EncryptedExtensions |15 |
+|5 |С→К |ApplicationData (23) |Handshake (22) |Certificate |983 |
+|6 |С→К |ApplicationData (23) |Handshake (22) |CertificateVerify |75 |
+|7 |С→К|ApplicationData (23) |Handshake (22) |Finished |48 |
+|8 |К→С |ChangeCipherSpec (20) |- |(ChangeCipherSpec) |- |
+|9 |К→С |ApplicationData (23) |Handshake (22) |Finished |48 |
+|10 |К→С |ApplicationData (23) |Alert (21) |(Alert) |- |
 
 Вивід кроків 2.3 і 2.4:
 ```
-
+root@cs-202-15:/lab/work# grep -a -A3 'extension_type=server_name' t2-13.txt | head -4
+        extension_type=server_name(0), length=22
+          0000 - 00 14 00 00 11 63 64 6e-2e 63 73 2d 32 30 32   .....cdn.cs-202
+          000f - 2d 31 35 2e 6c 61 62                           -15.lab
+        extension_type=ec_point_formats(11), length=4
+root@cs-202-15:/lab/work# for v in 1.3 1.2; do
+  timeout 6 tcpdump -ni eth0 -A -s0 -l 'host 10.53.0.80 and tcp port 443' > t2-dump-$v.txt &
+  sleep 1; curl -s -o /dev/null --tlsv1.2 --tls-max $v --cacert $STAND_CA https://cdn.cs-202-15.lab/; wait
+  echo "TLS $v: $(grep -a -c 'OPISM Stand Intermediate' t2-dump-$v.txt)"
+done
+[1] 65
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+22 packets captured
+22 packets received by filter
+0 packets dropped by kernel
+[1]+  Exit 124                timeout 6 tcpdump -ni eth0 -A -s0 -l 'host 10.53.0.80 and tcp port 443' > t2-dump-$v.txt
+TLS 1.3: 0
+[1] 71
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+21 packets captured
+21 packets received by filter
+0 packets dropped by kernel
+[1]+  Exit 124                timeout 6 tcpdump -ni eth0 -A -s0 -l 'host 10.53.0.80 and tcp port 443' > t2-dump-$v.txt
+TLS 1.2: 2
 ```
 | Показник | TLS 1.3 | TLS 1.2 |
 |---|---|---|
-| Довжина ClientHello, байт | | |
-| Номер першого запису, тип якого спостерігач не бачить | | |
-| Кількість RTT від ClientHello до першого HTTP-запиту | | |
-| Чи видно сертифікат у дампі (результат 2.4) | | |
-| Обраний протокол ALPN | | |
-1. За якими рядками виводу 2.1 визначено, з якого запису починається шифрування? Що бачить спостерігач замість типу кожного наступного запису?
-2. Чому ClientHello у TLS 1.3 довший, ніж у TLS 1.2? Назвіть розширення, яке за рахунок цього скорочує рукостискання на один RTT.
-3. Довжина розширення `server_name` у виводі 2.3 становить 17 байт для імені з 12 символів. З яких частин складається це значення і яким воно буде для вашого імені?
-4. Навіщо в TLS 1.3 передається запис ChangeCipherSpec, якщо в рукостисканні він нічого не змінює?
+| Довжина ClientHello, байт |328 |223 |
+| Номер першого запису, тип якого спостерігач не бачить |4 (EncryptedExtensions) |12 (ApplicationData) |
+| Кількість RTT від ClientHello до першого HTTP-запиту |1 |2 |
+| Чи видно сертифікат у дампі (результат 2.4) |Ні (0) |Так (2) |
+| Обраний протокол ALPN |h2 |h2 |
+
+**1. За якими рядками виводу 2.1 визначено, з якого запису починається шифрування? Що бачить спостерігач замість типу кожного наступного запису?** Шифрування починається з моменту, коли Content Type змінюється на ApplicationData (23), а справжній тип переноситься в Inner Content Type (наприклад, Inner Content Type = Handshake (22)). Спостерігач на мережевому рівні бачить лише загальний тип ApplicationData, а внутрішні типи та вміст пакетів зашифровані.
+**2. Чому ClientHello у TLS 1.3 довший, ніж у TLS 1.2? Назвіть розширення, яке за рахунок цього скорочує рукостискання на один RTT.** ClientHello у TLS 1.3 містить розширення для попереднього обміну та вибору криптографічних параметрів (key_share, а також підтримку попереднього використання сесій — PSK/Early Data), що дозволяє клієнту одразу надіслати ключі. Це розширення називається key_share (або розширення попереднього обміну), і саме воно скорочує рукостискання до 1 RTT.
+**3. Довжина розширення `server_name` у виводі 2.3 становить 17 байт для імені з 12 символів. З яких частин складається це значення і яким воно буде для вашого імені?** Значення складається з: типу імені (1 байт, зазвичай host_name), двобайтового поля довжини самого імені та рядка домену (cdn.cs-202-15.lab, який має довжину 17 символів). Загальна довжина розширення також містить тип розширення (2 байти) та довжину списку. Для вашого імені довжина залежатиме від кількості символів у домені.
+**4. Навіщо в TLS 1.3 передається запис ChangeCipherSpec, якщо в рукостисканні він нічого не змінює?** Він передається виключно для забезпечення зворотної сумісності (middlebox compatibility) зі старими мережевими пристроями, які очікують побачити цей байт у протоколі, хоча криптографічно в TLS 1.3 він не використовується і нічого не змінює.
+
 ## Завдання 3. Сертифікат для власного сервера
 Вивід кроків 3.1 і 3.2:
 ```text
