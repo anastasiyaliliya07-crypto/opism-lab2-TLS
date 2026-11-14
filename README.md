@@ -188,6 +188,7 @@ root@cs-202-15:/lab/work# grep -a -A3 'extension_type=server_name' t2-13.txt | h
           0000 - 00 14 00 00 11 63 64 6e-2e 63 73 2d 32 30 32   .....cdn.cs-202
           000f - 2d 31 35 2e 6c 61 62                           -15.lab
         extension_type=ec_point_formats(11), length=4
+
 root@cs-202-15:/lab/work# for v in 1.3 1.2; do
   timeout 6 tcpdump -ni eth0 -A -s0 -l 'host 10.53.0.80 and tcp port 443' > t2-dump-$v.txt &
   sleep 1; curl -s -o /dev/null --tlsv1.2 --tls-max $v --cacert $STAND_CA https://cdn.cs-202-15.lab/; wait
@@ -225,19 +226,131 @@ TLS 1.2: 2
 
 ## Завдання 3. Сертифікат для власного сервера
 Вивід кроків 3.1 і 3.2:
-```text
+```
+root@cs-202-15:/lab/work# acme-root
+openssl x509 -in /lab/tls/acme-root.crt -noout -subject -dates
+збережено /lab/tls/acme-root.crt
+subject=CN = Pebble Root CA 697adc
+notBefore=Nov 14 08:58:23 2026 GMT
+notAfter=Nov 14 08:58:23 2056 GMT
+
+root@cs-202-15:/lab/work# curl -sS --cacert /lab/tls/acme-root.crt https://www.cs-202-15.lab/
+curl: (60) SSL certificate problem: self-signed certificate
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the web page mentioned above.
 ```
 Вивід кроку 3.3 (останні рядки `lego` і рядки журналу nginx):
-```text
+```
+root@cs-202-15:/lab/work# lego --server $ACME_DIR --email admin@cs-202-15.lab --accept-tos --path /lab/work/lego \
+  --http --http.webroot /var/www/acme \
+  --domains www.cs-202-15.lab --domains news.cs-202-15.lab run --no-bundle
+grep acme-challenge /var/log/nginx/access.log
+2026/11/14 10:25:24 No key found for account admin@cs-202-15.lab. Generating a P256 key.
+2026/11/14 10:25:24 Saved key to /lab/work/lego/accounts/ca.lab_14000/admin@cs-202-15.lab/keys/admin@cs-202-15.lab.key
+2026/11/14 10:25:24 [INFO] acme: Registering account for admin@cs-202-15.lab
+!!!! HEADS UP !!!!
+
+Your account credentials have been saved in your Let's Encrypt
+configuration directory at "/lab/work/lego/accounts".
+
+You should make a secure backup of this folder now. This
+configuration directory will also contain certificates and
+private keys obtained from Let's Encrypt so making regular
+backups of this folder is ideal.
+2026/11/14 10:25:24 [INFO] [www.cs-202-15.lab, news.cs-202-15.lab] acme: Obtaining SAN certificate
+2026/11/14 10:25:24 [INFO] [news.cs-202-15.lab] AuthURL: https://ca.lab:14000/authZ/jT9djhCbJ2M99tptCe2k7uf1Vox2uTUAFBtImfS5j4c
+2026/11/14 10:25:24 [INFO] [www.cs-202-15.lab] AuthURL: https://ca.lab:14000/authZ/469cQyx9R_l-O05-y4swXhjnxDFnOzcn-ZZ5MDbjW4s
+2026/11/14 10:25:24 [INFO] [www.cs-202-15.lab] acme: Could not find solver for: tls-alpn-01
+2026/11/14 10:25:24 [INFO] [www.cs-202-15.lab] acme: use http-01 solver
+2026/11/14 10:25:24 [INFO] [news.cs-202-15.lab] acme: Could not find solver for: tls-alpn-01
+2026/11/14 10:25:24 [INFO] [news.cs-202-15.lab] acme: use http-01 solver
+2026/11/14 10:25:24 [INFO] [www.cs-202-15.lab] acme: Trying to solve HTTP-01
+2026/11/14 10:25:30 [INFO] [www.cs-202-15.lab] The server validated our request
+2026/11/14 10:25:30 [INFO] [news.cs-202-15.lab] acme: Trying to solve HTTP-01
+2026/11/14 10:25:34 [INFO] [news.cs-202-15.lab] The server validated our request
+2026/11/14 10:25:34 [INFO] [www.cs-202-15.lab, news.cs-202-15.lab] acme: Validations succeeded; requesting certificates
+2026/11/14 10:25:34 [INFO] Wait for certificate [timeout: 30s, interval: 500ms]
+2026/11/14 10:25:35 [INFO] [www.cs-202-15.lab] Server responded with a certificate.
+10.53.0.10 - - [14/Nov/2026:10:25:24 +0000] "GET /.well-known/acme-challenge/b_Z4-F6ilJa-zAUZ-WGklv7n039hkSRtStIaCF25_G0 HTTP/1.1" 200 87 "-" "LetsEncrypt-Pebble-VA (linux; amd64)"
+10.53.0.10 - - [14/Nov/2026:10:25:24 +0000] "GET /.well-known/acme-challenge/b_Z4-F6ilJa-zAUZ-WGklv7n039hkSRtStIaCF25_G0 HTTP/1.1" 200 87 "-" "LetsEncrypt-Pebble-VA (linux; amd64)"
+10.53.0.10 - - [14/Nov/2026:10:25:24 +0000] "GET /.well-known/acme-challenge/b_Z4-F6ilJa-zAUZ-WGklv7n039hkSRtStIaCF25_G0 HTTP/1.1" 200 87 "-" "LetsEncrypt-Pebble-VA (linux; amd64)"
+10.53.0.10 - - [14/Nov/2026:10:25:30 +0000] "GET /.well-known/acme-challenge/ZtS3tLUbkRwtaV6ua0UykC8X0fZMMyjpaGmudnhg1Ug HTTP/1.1" 200 87 "-" "LetsEncrypt-Pebble-VA (linux; amd64)"
+10.53.0.10 - - [14/Nov/2026:10:25:30 +0000] "GET /.well-known/acme-challenge/ZtS3tLUbkRwtaV6ua0UykC8X0fZMMyjpaGmudnhg1Ug HTTP/1.1" 200 87 "-" "LetsEncrypt-Pebble-VA (linux; amd64)"
+10.53.0.10 - - [14/Nov/2026:10:25:30 +0000] "GET /.well-known/acme-challenge/ZtS3tLUbkRwtaV6ua0UykC8X0fZMMyjpaGmudnhg1Ug HTTP/1.1" 200 87 "-" "LetsEncrypt-Pebble-VA (linux; amd64)"
 ```
 Вивід кроку 3.4:
-```text
+```
+root@cs-202-15:/lab/work# cd /lab/work/lego/certificates
+openssl x509 -in www.cs-202-15.lab.crt -noout -subject -issuer -dates -serial -ext subjectAltName 
+openssl x509 -in www.cs-202-15.lab.issuer.crt -noout -subject -issuer
+subject=CN = www.cs-202-15.lab
+issuer=CN = Pebble Intermediate CA 7d35d9
+notBefore=Nov 14 10:25:34 2026 GMT
+notAfter=Nov 14 10:25:33 2031 GMT
+serial=193A6D90558122DB
+X509v3 Subject Alternative Name: 
+    DNS:www.cs-202-15.lab, DNS:news.cs-202-15.lab
+subject=CN = Pebble Intermediate CA 7d35d9
+issuer=CN = Pebble Root CA 697adc
 ```
 Вивід кроку 3.5:
-```text
+```
+root@cs-202-15:/lab/work/lego/certificates# cp www.cs-202-15.lab.crt /lab/tls/server.crt
+cp www.cs-202-15.lab.key /lab/tls/server.key
+web-reload
+curl -sS --cacert /lab/tls/acme-root.crt https://www.cs-202-15.lab/
+openssl s_client -connect www.cs-202-15.lab:443 -servername www.cs-202-15.lab -CAfile /lab/tls/acme-root.crt \
+  </dev/null 2>/dev/null | sed -n '/^Certificate chain/,/^---/p;/^Verify return code/p'
+nginx: the configuration file /lab/nginx.conf syntax is ok
+nginx: configuration file /lab/nginx.conf test is successful
+2026/11/14 10:31:07 [notice] 94#94: signal process started
+curl: (60) SSL certificate problem: self-signed certificate
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the web page mentioned above.
+Certificate chain
+ 0 s:CN = www.cs-202-15.lab
+   i:CN = Pebble Intermediate CA 7d35d9
+   a:PKEY: id-ecPublicKey, 256 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Nov 14 10:25:34 2026 GMT; NotAfter: Nov 14 10:25:33 2031 GMT
+---
+Verify return code: 21 (unable to verify the first certificate)
 ```
 Вивід кроку 3.6:
-```text
+```
+root@cs-202-15:/lab/work/lego/certificates# cat www.cs-202-15.lab.crt www.cs-202-15.lab.issuer.crt > /lab/tls/server.crt
+web-reload
+curl -sS --cacert /lab/tls/acme-root.crt https://www.cs-202-15.lab/
+curl -sS --cacert /lab/tls/acme-root.crt https://news.cs-202-15.lab/
+openssl s_client -connect www.cs-202-15.lab:443 -servername www.cs-202-15.lab -CAfile /lab/tls/acme-root.crt \
+  </dev/null 2>/dev/null | sed -n '/^Certificate chain/,/^---/p;/^Verify return code/p'
+nginx: the configuration file /lab/nginx.conf syntax is ok
+nginx: configuration file /lab/nginx.conf test is successful
+2026/11/14 10:33:08 [notice] 102#102: signal process started
+server: cs-202-15 (https)
+Host: www.cs-202-15.lab
+SNI: www.cs-202-15.lab
+protocol: TLSv1.3
+server: cs-202-15 (https)
+Host: news.cs-202-15.lab
+SNI: news.cs-202-15.lab
+protocol: TLSv1.3
+Certificate chain
+ 0 s:CN = www.cs-202-15.lab
+   i:CN = Pebble Intermediate CA 7d35d9
+   a:PKEY: id-ecPublicKey, 256 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Nov 14 10:25:34 2026 GMT; NotAfter: Nov 14 10:25:33 2031 GMT
+ 1 s:CN = Pebble Intermediate CA 7d35d9
+   i:CN = Pebble Root CA 697adc
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Nov 14 08:58:23 2026 GMT; NotAfter: Nov 14 08:58:23 2056 GMT
+---
+Verify return code: 0 (ok)
 ```
 | Параметр | Значення |
 |---|---|
@@ -247,6 +360,7 @@ TLS 1.2: 2
 | Строк дії (від – до) | |
 | Тип ключа сервера і алгоритм підпису | |
 | Кількість сертифікатів, які надсилає сервер, у кроці 3.5 і в кроці 3.6 | |
+
 1. Хто і як перевірив, що ви контролюєте обидва імена? Вкажіть рядки виводу, які це підтверджують.
 2. Чому в кроці 3.5 перевірка не пройшла, хоча корінь центру сертифікації вказано в `--cacert`, а сертифікат виданий правильно?
 3. У виводі ланцюжка для сертифіката сервера вказано `id-ecPublicKey` і `RSA-SHA256`. Що означає кожне з цих значень і чому вони не суперечать одне одному?
