@@ -473,7 +473,7 @@ Verify return code: 21 (unable to verify the first certificate)
 |---|---|---|---|---|---|
 | f1 |`SSL certificate problem: self-signed certificate` (Недовірений підпис) |`18 (self-signed certificate)` |Самопідписаний сертифікат |`i:CN = f1.cs-202-15.lab` (Issuer збігається з Subject) |Замінити сертифікат на підписаний довіреним Центром сертифікації (CA) |
 | f2 |`SSL certificate problem: certificate has expired` (Термін вичерпано) |`10 (certificate has expired)` |Прострочений сертифікат |`NotAfter: Oct 25 ... 2026 GMT` (поточна дата пізніша) |Оновити (випустити новий) сертифікат |
-| f3 |`SSL: no alternative certificate subject name matches target host name` (Помилка домена) |`0 (ok)` |Невідповідність імені (SAN/CN не збігається з доходом) |`0 s:CN = intra.cs-202-15.lab` (а запитували `f3.cs-202-15.lab`) |Випустити сертифікат із правильним ім'ям у SAN або перейменувати сервер |
+| f3 |`SSL: no alternative certificate subject name matches target host name` (Помилка домена) |`0 (ok)` |Невідповідність імені (SAN/CN не збігається з доменом) |`0 s:CN = intra.cs-202-15.lab` (а запитували `f3.cs-202-15.lab`) |Випустити сертифікат із правильним ім'ям у SAN або перейменувати сервер |
 | f4 |(відсутня, запит успішний) (Без помилок) |`0 (ok)` |Успішно (справний сервер) |`server: web, f4` / `Verify return code: 0 (ok)` |Нічого (сервер працює коректно) |
 | f5 |`SSL certificate problem: unable to get local issuer certificate` (Відсутній видавець) |`21 (unable to verify the first certificate)` |Сервер не надсилає проміжний сертифікат (неповний ланцюжок) |У ланцюжку присутній лише елемент `0`, а проміжний `1` відсутній |Додати проміжний сертифікат видавця до конфігурації сервера (як я робила в завданні 3.6) |
 
