@@ -475,7 +475,7 @@ Verify return code: 21 (unable to verify the first certificate)
 | f2 |`SSL certificate problem: certificate has expired` (Термін вичерпано) |`10 (certificate has expired)` |Прострочений сертифікат |`NotAfter: Oct 25 ... 2026 GMT` (поточна дата пізніша) |Оновити (випустити новий) сертифікат |
 | f3 |`SSL: no alternative certificate subject name matches target host name` (Помилка домена) |`0 (ok)` |Невідповідність імені (SAN/CN не збігається з доходом) |`0 s:CN = intra.cs-202-15.lab` (а запитували `f3.cs-202-15.lab`) |Випустити сертифікат із правильним ім'ям у SAN або перейменувати сервер |
 | f4 |(відсутня, запит успішний) (Без помилок) |`0 (ok)` |Успішно (справний сервер) |`server: web, f4` / `Verify return code: 0 (ok)` |Нічого (сервер працює коректно) |
-| f5 |`SSL certificate problem: unable to get local issuer certificate` (Відсутній видавець) |`21 (unable to verify the first certificate)` |Сервер не надсилає проміжний сертифікат (неповний ланцюжок) |У ланцюжку присутній лише елемент `0`, а проміжний `1` відсутній |Додати проміжний сертифікат видавця до конфігурації сервера (як ми робили в завданні 3.6) |
+| f5 |`SSL certificate problem: unable to get local issuer certificate` (Відсутній видавець) |`21 (unable to verify the first certificate)` |Сервер не надсилає проміжний сертифікат (неповний ланцюжок) |У ланцюжку присутній лише елемент `0`, а проміжний `1` відсутній |Додати проміжний сертифікат видавця до конфігурації сервера (як я робила в завданні 3.6) |
 
 **1. Для сервера з помилкою `unable to get local issuer certificate` визначте, яка це несправність: сервер не надсилає проміжний сертифікат чи сертифікат виданий центром, якому клієнт не довіряє. Чим ці дві несправності відрізняються у виводі `openssl s_client`?** 
 
